@@ -1,6 +1,6 @@
-# Product Requirements Document (PRD) — PassingPlates v0.9
+# Product Requirements Document (PRD) — PassingPlates v0.9.1
 
-*(Codex-ready edition)*
+*(Codex-ready edition — React Native stack)*
 
 > **One-liner:** "How often do you really cross paths with the same cars?" PassingPlates runs fully on-device, recognises licence plates while you drive, and shows repeat-encounter stats — no cloud, no distraction.
 
@@ -110,10 +110,11 @@ CREATE TABLE plates (
 
 ### 9.1 Stack
 
-* **Flutter 3.22+** (null‑safe Dart 3.x) cross‑platform.
-* Plugins: `camera`, `flutter_isolate`, `sqflite`, `geolocator`, `riverpod`, `crypto`.
-* **FastALPR** ONNX models → TFLite (Android, NNAPI), Core ML (iOS, BNNS). Input size 640×384.
-* Hardware acceleration delegates configured via `tflite_flutter_delegate` and `coreml` backend.
+* **React Native 0.74+** with TypeScript for cross‑platform UI.
+* Libraries: `react-native-vision-camera`, `react-native-background-service`,
+  `react-native-sqlite-storage`, `@react-native-community/geolocation`, `react-native-reanimated`.
+* **FastALPR** ONNX models via native modules → TFLite (Android, NNAPI) and Core ML (iOS, BNNS). Input size 640×384.
+* Hardware acceleration delegates configured through platform-native code.
 
 ### 9.2 Processing Flow
 
@@ -131,7 +132,7 @@ E --> F[Stats Stream → UI]
 | Layer   | Tool                                     | Goal                                  |
 | ------- | ---------------------------------------- | ------------------------------------- |
 | Model   | Python notebook + OpenCV                 | Precision/recall on labelled clip set |
-| App     | Flutter integration tests                | Cold‑start latency, DB ops            |
+| App     | React Native Jest + Detox tests          | Cold‑start latency, DB ops            |
 | Battery | Android Batterystats / Xcode instruments | Verify drain threshold                |
 
 ---
@@ -152,7 +153,7 @@ E --> F[Stats Stream → UI]
 | Phase                    | Length | Key Deliverables                                             |
 | ------------------------ | ------ | ------------------------------------------------------------ |
 | **Prototype**            | 2 wks  | Desktop FastALPR PoC, detection metrics report               |
-| **MVP**                  | 4 wks  | Flutter app, on‑device inference, local DB, basic stats view |
+| **MVP**                  | 4 wks  | React Native app, on‑device inference, local DB, basic stats view |
 | **Validation & Testing** | 2 wks  | Closed beta, TestFlight & Play internal                      |
 | **Open Beta**            | 2 wks  | Public TestFlight/Play, telemetry (opt‑in)                   |
 | **v1.0 GA**              | 2 wks  | Store launch, marketing site, privacy audit                  |
@@ -173,24 +174,25 @@ E --> F[Stats Stream → UI]
 # Cursor Rules — PassingPlates
 
 ## Tech
-- Flutter (Dart) only. Target minSdk 33 (Android 13) & iOS 15.
-- Mandatory packages: camera, flutter_isolate, sqflite, geolocator, riverpod, crypto.
+- React Native (TypeScript). Target Android 13 (SDK 33) & iOS 15.
+- Mandatory packages: react-native-vision-camera, react-native-background-service,
+  react-native-sqlite-storage, @react-native-community/geolocation, react-native-reanimated.
 
 ## Architecture
 - Clean Architecture layers: Presentation → Domain → Data.
-- ViewModels expose `AsyncValue<T>` via Riverpod.
-- Use Freezed for immutable domain models.
+- State managed via React Context or Redux.
+- Use TypeScript interfaces for immutable domain models.
 
 ## Code Style
-- Use `dart format` defaults.
-- Doc comments (`///`) on all public classes & methods.
+- Use Prettier defaults.
+- Doc comments (`/** */`) on all public classes & functions.
 - TODOs in `// TODO(username): …` format.
-- Unit test files named `*_test.dart`; coverage ≥ 80 % for Data layer.
+- Unit test files named `*.test.ts(x)`; coverage ≥ 80 % for Data layer.
 
 ## Performance Guidelines
 - Downscale input to max 640 px long edge.
 - Process ≤ 2 frames per second by default; adjustable in settings.
-- Offload inference to separate Isolate; never block UI thread.
+- Offload inference to native module; never block JS thread.
 
 ## Privacy & Safety
 - Never persist raw JPEGs. Plate strings only in SQLite.
@@ -204,10 +206,10 @@ E --> F[Stats Stream → UI]
 
 ```bash
 # Clone & run
-flutter pub get
-flutter run -d ios
+npm install
+npx react-native run-ios # or run-android
 # Run tests
-flutter test --coverage
+npm test -- --coverage
 ```
 
 Codex prompts live in `/prompts/*.md` and follow pattern:
@@ -221,6 +223,12 @@ Links to PRD section + current file path.
 Rules excerpt.
 ```
 
+## 15 • Implementation Next Steps
+
+For a practical breakdown of tasks and associated tests, see `DEV_PLAN.md` in
+the repository root. It walks through bootstrapping the React Native project,
+adding core features, and setting up CI with Jest and Detox.
+
 ---
 
-**End of PRD v0.9**
+**End of PRD v0.9.1**
