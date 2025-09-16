@@ -1,0 +1,157 @@
+import { wordsToDetections } from './detections.js';
+import { ensureWorker, recognize } from './ocr.js';
+
+const CAPTURE_INTERVAL_MS = 3500;
+
+export function createCameraController({
+  videoElement,
+  onDetections,
+  onStatus,
+}) {
+  let stream = null;
+  let intervalId = null;
+  let processing = false;
+  let active = false;
+  const canvas = document.createElement('canvas');
+
+  const updateStatus = (state) => {
+    if (typeof onStatus === 'function') {
+      onStatus(state);
+    }
+  };
+
+  const stop = async ({ silent } = {}) => {
+    if (intervalId) {
+      window.clearInterval(intervalId);
+      intervalId = null;
+    }
+    processing = false;
+    active = false;
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (error) {
+          console.warn('Failed to stop track', error);
+        }
+      });
+      stream = null;
+    }
+    if (videoElement) {
+      try {
+        videoElement.pause?.();
+      } catch (error) {
+        // ignore pause errors
+      }
+      videoElement.srcObject = null;
+    }
+    if (!silent) {
+      updateStatus({ state: 'idle' });
+    }
+  };
+
+  const captureFrame = async () => {
+    if (!stream || processing) {
+      return;
+    }
+    const video = videoElement;
+    if (!video || video.readyState < 2) {
+      return;
+    }
+    processing = true;
+    try {
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 720;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return;
+      }
+      ctx.drawImage(video, 0, 0, width, height);
+      const result = await recognize(canvas, (workerState) => {
+        if (!workerState) {
+          return;
+        }
+        if (workerState.status === 'processing') {
+          updateStatus({ state: 'processing' });
+        } else if (workerState.status === 'ready') {
+          updateStatus({ state: 'scanning' });
+        }
+      });
+      if (!result || !result.data) {
+        return;
+      }
+      const words = Array.isArray(result.data.words) ? result.data.words : [];
+      const detections = wordsToDetections(words, width, height, 'camera');
+      if (typeof onDetections === 'function') {
+        onDetections(detections);
+      }
+    } catch (error) {
+      console.error('Failed to process frame', error);
+    } finally {
+      processing = false;
+    }
+  };
+
+  const start = async () => {
+    if (active) {
+      return;
+    }
+    if (!videoElement) {
+      updateStatus({ state: 'error', message: 'Video element missing' });
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      updateStatus({ state: 'error', message: 'Camera access is not supported in this browser.' });
+      return;
+    }
+    active = true;
+    updateStatus({ state: 'requesting-permission' });
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+      stream = mediaStream;
+      videoElement.srcObject = mediaStream;
+      videoElement.setAttribute('playsinline', 'true');
+      videoElement.muted = true;
+      await videoElement.play();
+
+      updateStatus({ state: 'initializing', progress: 0.1 });
+      await ensureWorker((workerState) => {
+        if (!workerState) {
+          return;
+        }
+        if (workerState.status === 'loading') {
+          updateStatus({
+            state: 'initializing',
+            progress: workerState.progress,
+            message: workerState.message,
+          });
+        } else if (workerState.status === 'ready') {
+          updateStatus({ state: 'ready' });
+        }
+      });
+
+      updateStatus({ state: 'scanning' });
+      intervalId = window.setInterval(captureFrame, CAPTURE_INTERVAL_MS);
+      await captureFrame();
+    } catch (error) {
+      console.error('Failed to start camera', error);
+      updateStatus({ state: 'error', message: error?.message || 'Unable to access camera' });
+      await stop({ silent: true });
+    }
+  };
+
+  return {
+    start,
+    stop,
+    isActive: () => active && !!stream,
+  };
+}
