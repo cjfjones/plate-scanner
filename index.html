@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PassingPlates Web</title>
+    <link rel="stylesheet" href="./styles/app.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app__header">
+        <h1>PassingPlates Web</h1>
+        <p>
+          Scan license plates entirely in your browser. Everything runs on-device so you can deploy this build to GitHub Pages
+          and open it from iOS Safari without installing anything.
+        </p>
+      </header>
+
+      <main class="app__content">
+        <section class="section-card" id="scanner-section">
+          <div class="actions-row">
+            <button id="start-scan" class="primary">Start scanning</button>
+            <button id="stop-scan" class="secondary" disabled>Stop scanning</button>
+            <span id="camera-status" class="status-badge idle">Idle</span>
+          </div>
+          <div class="video-container">
+            <video id="camera-video" playsinline muted></video>
+            <div id="camera-overlay"></div>
+          </div>
+          <p id="scanner-hint">
+            Grant camera access when prompted. On iOS Safari you must serve this page over HTTPS (GitHub Pages already does).
+          </p>
+          <p id="scanner-last-detection" class="detection-meta hidden"></p>
+        </section>
+
+        <section class="section-card" id="upload-section">
+          <h2>Process a still image</h2>
+          <p>Use this when camera access is unavailable. Works with photos from Files or your photo library.</p>
+          <div class="actions-row">
+            <input id="file-input" type="file" accept="image/*" hidden />
+            <button id="upload-button" class="primary">Choose an image</button>
+            <span id="upload-status" class="status-badge idle">Idle</span>
+          </div>
+        </section>
+
+        <section class="section-card" id="encounters-section">
+          <h2>Encounters</h2>
+          <p id="encounters-empty" class="empty-state">No plates captured yet. Start scanning or upload a still image.</p>
+          <div id="detections-grid" class="detections-grid"></div>
+        </section>
+
+        <section class="section-card" id="stats-section">
+          <h2>Stats</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span>Unique plates</span>
+              <strong id="stat-unique">0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Total sightings</span>
+              <strong id="stat-total">0</strong>
+            </div>
+            <div class="stat-card">
+              <span>Most seen</span>
+              <strong id="stat-most">--</strong>
+              <span id="stat-most-count" class="detection-meta"></span>
+            </div>
+            <div class="stat-card">
+              <span>Last seen</span>
+              <strong id="stat-recent">--</strong>
+              <span id="stat-recent-time" class="detection-meta"></span>
+            </div>
+          </div>
+          <div class="actions-row">
+            <button id="export-csv" class="secondary" disabled>Export CSV</button>
+            <button id="reset-history" class="danger" disabled>Clear history</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script type="module" src="./scripts/main.js"></script>
+  </body>
+</html>
