@@ -48,6 +48,8 @@ export async function ensureWorker(reportStatus) {
         },
       });
 
+      sendStatus(reportStatus, { status: 'loading', message: 'Loading OCR engine', progress: 0.4 });
+      await worker.load();
       sendStatus(reportStatus, { status: 'loading', message: 'Loading English language', progress: 0.6 });
       await worker.loadLanguage('eng');
       sendStatus(reportStatus, { status: 'loading', message: 'Initializing OCR', progress: 0.8 });
