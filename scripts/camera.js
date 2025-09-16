@@ -2,6 +2,46 @@ import { wordsToDetections } from './detections.js';
 import { ensureWorker, recognize } from './ocr.js';
 
 const CAPTURE_INTERVAL_MS = 3500;
+const WORKER_PROGRESS_WARNING_MS = 12000;
+const WORKER_PROGRESS_TIMEOUT_MS = 45000;
+
+const PROGRESS_MESSAGE_HINTS = [
+  { test: /preparing ocr engine/i, progress: 0.1 },
+  { test: /loading (english|eng)/i, progress: 0.65 },
+  { test: /loading (?:language|traineddata)/i, progress: 0.6 },
+  { test: /loading (?:worker|core|wasm)/i, progress: 0.3 },
+  { test: /initializing (?:ocr|tesseract|api)/i, progress: 0.9 },
+];
+
+function normalizeProgress(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+  if (numeric >= 0 && numeric <= 1) {
+    return numeric;
+  }
+  if (numeric >= 0 && numeric <= 100) {
+    return numeric / 100;
+  }
+  if (numeric < 0) {
+    return 0;
+  }
+  return 1;
+}
+
+function inferProgressFromMessage(message) {
+  if (typeof message !== 'string') {
+    return null;
+  }
+  const normalized = message.toLowerCase();
+  for (const hint of PROGRESS_MESSAGE_HINTS) {
+    if (hint.test.test(normalized)) {
+      return Math.min(Math.max(hint.progress, 0), 1);
+    }
+  }
+  return null;
+}
 
 export function createCameraController({
   videoElement,
@@ -12,12 +52,70 @@ export function createCameraController({
   let intervalId = null;
   let processing = false;
   let active = false;
+  let latestWorkerProgress = 0;
+  let workerWarningTimeoutId = null;
+  let workerTimeoutId = null;
   const canvas = document.createElement('canvas');
 
   const updateStatus = (state) => {
     if (typeof onStatus === 'function') {
       onStatus(state);
     }
+  };
+
+  const clearWorkerWatchdogs = () => {
+    if (workerWarningTimeoutId) {
+      window.clearTimeout(workerWarningTimeoutId);
+      workerWarningTimeoutId = null;
+    }
+    if (workerTimeoutId) {
+      window.clearTimeout(workerTimeoutId);
+      workerTimeoutId = null;
+    }
+  };
+
+  const scheduleWorkerWarning = () => {
+    if (!active) {
+      return;
+    }
+    if (workerWarningTimeoutId) {
+      window.clearTimeout(workerWarningTimeoutId);
+    }
+    workerWarningTimeoutId = window.setTimeout(() => {
+      if (!active) {
+        return;
+      }
+      const fallbackProgress = latestWorkerProgress > 0 ? latestWorkerProgress : 0.1;
+      updateStatus({
+        state: 'initializing',
+        progress: fallbackProgress,
+        message: 'Still loading the OCR engine… This can take up to 30 seconds on the first run.',
+      });
+      workerWarningTimeoutId = null;
+    }, WORKER_PROGRESS_WARNING_MS);
+  };
+
+  const scheduleWorkerTimeout = () => {
+    if (!active) {
+      return;
+    }
+    if (workerTimeoutId) {
+      window.clearTimeout(workerTimeoutId);
+    }
+    workerTimeoutId = window.setTimeout(() => {
+      if (!active) {
+        return;
+      }
+      console.error('Timed out while initializing OCR worker');
+      updateStatus({
+        state: 'error',
+        message: 'Loading the OCR engine timed out. Check your connection and try again.',
+      });
+      clearWorkerWatchdogs();
+      stop({ silent: true }).catch((error) => {
+        console.warn('Failed to stop camera after OCR timeout', error);
+      });
+    }, WORKER_PROGRESS_TIMEOUT_MS);
   };
 
   const stop = async ({ silent } = {}) => {
@@ -27,6 +125,7 @@ export function createCameraController({
     }
     processing = false;
     active = false;
+    clearWorkerWatchdogs();
     if (stream) {
       stream.getTracks().forEach((track) => {
         try {
@@ -45,6 +144,7 @@ export function createCameraController({
       }
       videoElement.srcObject = null;
     }
+    latestWorkerProgress = 0;
     if (!silent) {
       updateStatus({ state: 'idle' });
     }
@@ -123,21 +223,41 @@ export function createCameraController({
       videoElement.muted = true;
       await videoElement.play();
 
-      updateStatus({ state: 'initializing', progress: 0.1 });
+      latestWorkerProgress = 0.1;
+      updateStatus({ state: 'initializing', progress: latestWorkerProgress });
+      scheduleWorkerWarning();
+      scheduleWorkerTimeout();
       await ensureWorker((workerState) => {
         if (!workerState) {
           return;
         }
+        if (!active) {
+          return;
+        }
         if (workerState.status === 'loading') {
+          const normalizedProgress = normalizeProgress(workerState.progress);
+          const inferredProgress =
+            normalizedProgress !== null ? normalizedProgress : inferProgressFromMessage(workerState.message);
+          if (inferredProgress !== null) {
+            latestWorkerProgress = Math.max(latestWorkerProgress, inferredProgress);
+          }
+          scheduleWorkerWarning();
+          scheduleWorkerTimeout();
           updateStatus({
             state: 'initializing',
-            progress: workerState.progress,
+            progress: latestWorkerProgress,
             message: workerState.message,
           });
         } else if (workerState.status === 'ready') {
+          latestWorkerProgress = 1;
+          clearWorkerWatchdogs();
           updateStatus({ state: 'ready' });
         }
       });
+
+      if (!active) {
+        return;
+      }
 
       updateStatus({ state: 'scanning' });
       intervalId = window.setInterval(captureFrame, CAPTURE_INTERVAL_MS);
@@ -145,6 +265,7 @@ export function createCameraController({
     } catch (error) {
       console.error('Failed to start camera', error);
       updateStatus({ state: 'error', message: error?.message || 'Unable to access camera' });
+      clearWorkerWatchdogs();
       await stop({ silent: true });
     }
   };
