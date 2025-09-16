@@ -216,6 +216,20 @@ function updateHistoryButtons(hasRecords) {
   }
 }
 
+function describeLoadingStatus(state) {
+  const message = typeof state?.message === 'string' ? state.message.trim() : '';
+  const baseLabel = 'Loading OCR';
+  const label = message ? `${baseLabel} — ${message}` : baseLabel;
+  const rawProgress = Number(state?.progress);
+  if (!Number.isFinite(rawProgress)) {
+    return label;
+  }
+  const normalized = rawProgress > 1 ? rawProgress / 100 : rawProgress;
+  const clamped = Math.min(Math.max(normalized, 0), 1);
+  const percent = Math.round(clamped * 100);
+  return `${label} ${percent}%`;
+}
+
 function mapCameraStatus(state) {
   if (!state || !state.state) {
     return { text: 'Idle', tone: 'idle' };
@@ -226,8 +240,7 @@ function mapCameraStatus(state) {
     case 'requesting-permission':
       return { text: 'Requesting camera…' };
     case 'initializing': {
-      const progress = typeof state.progress === 'number' ? ` ${Math.round(state.progress * 100)}%` : '';
-      return { text: `Loading OCR${progress}` };
+      return { text: describeLoadingStatus(state) };
     }
     case 'ready':
       return { text: 'Ready', tone: 'ready' };

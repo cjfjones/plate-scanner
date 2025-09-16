@@ -3,6 +3,23 @@ import { ensureWorker, recognize } from './ocr.js';
 
 const CAPTURE_INTERVAL_MS = 3500;
 
+function normalizeProgress(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+  if (numeric >= 0 && numeric <= 1) {
+    return numeric;
+  }
+  if (numeric >= 0 && numeric <= 100) {
+    return numeric / 100;
+  }
+  if (numeric < 0) {
+    return 0;
+  }
+  return 1;
+}
+
 export function createCameraController({
   videoElement,
   onDetections,
@@ -12,6 +29,7 @@ export function createCameraController({
   let intervalId = null;
   let processing = false;
   let active = false;
+  let latestWorkerProgress = 0;
   const canvas = document.createElement('canvas');
 
   const updateStatus = (state) => {
@@ -123,18 +141,24 @@ export function createCameraController({
       videoElement.muted = true;
       await videoElement.play();
 
-      updateStatus({ state: 'initializing', progress: 0.1 });
+      latestWorkerProgress = 0.1;
+      updateStatus({ state: 'initializing', progress: latestWorkerProgress });
       await ensureWorker((workerState) => {
         if (!workerState) {
           return;
         }
         if (workerState.status === 'loading') {
+          const normalizedProgress = normalizeProgress(workerState.progress);
+          if (normalizedProgress !== null) {
+            latestWorkerProgress = Math.max(latestWorkerProgress, normalizedProgress);
+          }
           updateStatus({
             state: 'initializing',
-            progress: workerState.progress,
+            progress: latestWorkerProgress,
             message: workerState.message,
           });
         } else if (workerState.status === 'ready') {
+          latestWorkerProgress = 1;
           updateStatus({ state: 'ready' });
         }
       });
