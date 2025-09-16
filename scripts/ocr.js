@@ -1,5 +1,21 @@
 const CDN_BASE = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/';
 
+function shouldDisableBlobWorker() {
+  const nav = globalThis.navigator;
+  if (!nav) {
+    return false;
+  }
+  const userAgent = nav.userAgent || '';
+  if (!userAgent) {
+    return false;
+  }
+  const isAppleVendor = typeof nav.vendor === 'string' && nav.vendor.includes('Apple');
+  const isIOS = /\b(iPad|iPhone|iPod)\b/i.test(userAgent);
+  const isSafari = /Safari/i.test(userAgent) && !/(Chrome|CriOS|Chromium|Edg|OPiOS|FxiOS)/i.test(userAgent);
+  const isMacTouchDevice = userAgent.includes('Macintosh') && 'ontouchend' in globalThis;
+  return (isAppleVendor && isSafari) || isIOS || isMacTouchDevice;
+}
+
 let workerInstance = null;
 let workerPromise = null;
 
@@ -31,7 +47,7 @@ export async function ensureWorker(reportStatus) {
     workerPromise = (async () => {
       const Tesseract = getTesseract();
       sendStatus(reportStatus, { status: 'loading', message: 'Preparing OCR engine', progress: 0 });
-      const worker = await Tesseract.createWorker({
+      const workerOptions = {
         workerPath: `${CDN_BASE}worker.min.js`,
         corePath: `${CDN_BASE}tesseract-core.wasm.js`,
         langPath: `${CDN_BASE}langs/`,
@@ -46,7 +62,13 @@ export async function ensureWorker(reportStatus) {
             progress,
           });
         },
-      });
+      };
+
+      if (shouldDisableBlobWorker()) {
+        workerOptions.workerBlobURL = false;
+      }
+
+      const worker = await Tesseract.createWorker(workerOptions);
 
       sendStatus(reportStatus, { status: 'loading', message: 'Loading OCR engine', progress: 0.4 });
       await worker.load();
