@@ -266,6 +266,60 @@ button.danger:hover:not(:disabled) {
   font-style: italic;
 }
 
+.debug-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.debug-log__item {
+  border-radius: 12px;
+  border: 1px solid rgba(11, 27, 51, 0.08);
+  background: linear-gradient(150deg, rgba(11, 95, 255, 0.08), rgba(0, 194, 255, 0.05));
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.debug-log__item--empty {
+  border-style: dashed;
+  background: rgba(11, 27, 51, 0.04);
+  color: #3a4a66;
+  font-style: italic;
+  align-items: center;
+  text-align: center;
+}
+
+.debug-log__meta {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-family: 'Roboto Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  color: #3a4a66;
+}
+
+.debug-log__source {
+  font-weight: 600;
+  color: #0b1b33;
+}
+
+.debug-log__timestamp {
+  opacity: 0.8;
+}
+
+.debug-log__message {
+  font-size: 0.95rem;
+  color: #0b1b33;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
 .hidden {
   display: none !important;
 }

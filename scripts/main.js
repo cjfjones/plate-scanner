@@ -25,6 +25,8 @@ const elements = {
   statRecentTime: document.getElementById('stat-recent-time'),
   exportCsv: document.getElementById('export-csv'),
   resetHistory: document.getElementById('reset-history'),
+  debugLog: document.getElementById('debug-log'),
+  debugLogEmpty: document.getElementById('debug-log-empty'),
 };
 
 function setBadge(element, { text, tone }) {
@@ -230,6 +232,89 @@ function describeLoadingStatus(state) {
   return `${label} ${percent}%`;
 }
 
+const debugState = {
+  lastMessages: new Map(),
+};
+
+function describeWorkerDebug(state) {
+  if (!state) {
+    return '';
+  }
+  if (state.status === 'loading') {
+    return describeLoadingStatus(state);
+  }
+  if (state.status === 'processing') {
+    return 'Processing input';
+  }
+  if (state.status === 'ready') {
+    return 'Worker ready';
+  }
+  if (state.status === 'error') {
+    return state.message ? `Error: ${state.message}` : 'Worker error';
+  }
+  if (state.message) {
+    return state.message;
+  }
+  if (state.status) {
+    return `Status: ${state.status}`;
+  }
+  return '';
+}
+
+function logWorkerState(source, state) {
+  const message = describeWorkerDebug(state);
+  if (!source || !message) {
+    return;
+  }
+
+  const fingerprint = `${state?.status ?? 'unknown'}|${message}`;
+  if (debugState.lastMessages.get(source) === fingerprint) {
+    return;
+  }
+  debugState.lastMessages.set(source, fingerprint);
+
+  if (elements.debugLogEmpty) {
+    elements.debugLogEmpty.classList.add('hidden');
+  }
+  if (!elements.debugLog) {
+    return;
+  }
+
+  const item = document.createElement('li');
+  item.className = 'debug-log__item';
+
+  const meta = document.createElement('div');
+  meta.className = 'debug-log__meta';
+
+  const sourceSpan = document.createElement('span');
+  sourceSpan.className = 'debug-log__source';
+  sourceSpan.textContent = source;
+  meta.appendChild(sourceSpan);
+
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'debug-log__timestamp';
+  timeSpan.textContent = new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  meta.appendChild(timeSpan);
+
+  const messageLine = document.createElement('div');
+  messageLine.className = 'debug-log__message';
+  messageLine.textContent = message;
+
+  item.appendChild(meta);
+  item.appendChild(messageLine);
+
+  elements.debugLog.prepend(item);
+
+  const MAX_DEBUG_ENTRIES = 20;
+  while (elements.debugLog.children.length > MAX_DEBUG_ENTRIES) {
+    elements.debugLog.removeChild(elements.debugLog.lastElementChild);
+  }
+}
+
 function mapCameraStatus(state) {
   if (!state || !state.state) {
     return { text: 'Idle', tone: 'idle' };
@@ -323,6 +408,7 @@ async function processFile(file) {
       if (!workerState) {
         return;
       }
+      logWorkerState('Image upload', workerState);
       if (workerState.status === 'loading') {
         setUploadStatus('Loading OCR…');
       } else if (workerState.status === 'processing') {
@@ -341,6 +427,7 @@ async function processFile(file) {
     setUploadStatus(`Detected ${detections[0].formattedPlate}`, 'ready');
   } catch (error) {
     console.error('Failed to process still image', error);
+    logWorkerState('Image upload', { status: 'error', message: error?.message || 'Processing failed' });
     setUploadStatus(error?.message ? `Error: ${error.message}` : 'Processing failed', 'error');
   }
 }
@@ -391,6 +478,7 @@ function init() {
     videoElement: elements.cameraVideo,
     onDetections: handleDetections,
     onStatus: handleCameraStatus,
+    onWorkerState: (state) => logWorkerState('Camera', state),
   });
 
   setupEventListeners();

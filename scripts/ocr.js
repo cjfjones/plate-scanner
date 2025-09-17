@@ -1,5 +1,5 @@
 const CDN_BASE = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/';
-const WORKER_CREATION_TIMEOUT_MS = 8000;
+const WORKER_CREATION_TIMEOUT_MS = 25000;
 
 function shouldDisableBlobWorker() {
   const nav = globalThis.navigator;

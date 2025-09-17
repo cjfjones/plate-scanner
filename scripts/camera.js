@@ -24,6 +24,7 @@ export function createCameraController({
   videoElement,
   onDetections,
   onStatus,
+  onWorkerState,
 }) {
   let stream = null;
   let intervalId = null;
@@ -31,6 +32,12 @@ export function createCameraController({
   let active = false;
   let latestWorkerProgress = 0;
   const canvas = document.createElement('canvas');
+
+  const emitWorkerState = (state) => {
+    if (typeof onWorkerState === 'function' && state) {
+      onWorkerState(state);
+    }
+  };
 
   const updateStatus = (state) => {
     if (typeof onStatus === 'function') {
@@ -91,6 +98,7 @@ export function createCameraController({
         if (!workerState) {
           return;
         }
+        emitWorkerState(workerState);
         if (workerState.status === 'processing') {
           updateStatus({ state: 'processing' });
         } else if (workerState.status === 'ready') {
@@ -107,6 +115,7 @@ export function createCameraController({
       }
     } catch (error) {
       console.error('Failed to process frame', error);
+      emitWorkerState({ status: 'error', message: error?.message || 'Failed to process camera frame' });
     } finally {
       processing = false;
     }
@@ -147,6 +156,7 @@ export function createCameraController({
         if (!workerState) {
           return;
         }
+        emitWorkerState(workerState);
         if (workerState.status === 'loading') {
           const normalizedProgress = normalizeProgress(workerState.progress);
           if (normalizedProgress !== null) {
@@ -168,6 +178,7 @@ export function createCameraController({
       await captureFrame();
     } catch (error) {
       console.error('Failed to start camera', error);
+      emitWorkerState({ status: 'error', message: error?.message || 'Unable to access camera' });
       updateStatus({ state: 'error', message: error?.message || 'Unable to access camera' });
       await stop({ silent: true });
     }
