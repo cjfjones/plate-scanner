@@ -1,0 +1,30 @@
+{
+  "name": "gh-pages-site",
+  "private": true,
+  "scripts": {
+    "serve": "live-server ./ --port=4173 --quiet",
+    "lint:html": "htmlhint **/*.html || true",
+    "lint:css": "stylelint \"**/*.css\"",
+    "lint:js": "eslint .",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "test:axe": "node scripts/axe-scan.mjs",
+    "test:links": "npx linkinator . --recurse --silent --skip 'mailto:,tel:'",
+    "test": "npm run lint:html && npm run lint:css && npm run lint:js && npm run test:unit && npm run test:e2e && npm run test:axe && npm run test:links"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.9.0",
+    "@playwright/test": "^1.47.0",
+    "eslint": "^9.0.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-n": "^17.10.0",
+    "eslint-plugin-promise": "^6.4.0",
+    "htmlhint": "^1.1.4",
+    "linkinator": "^5.0.0",
+    "live-server": "^1.2.2",
+    "stylelint": "^16.7.0",
+    "stylelint-config-standard": "^36.0.0",
+    "vitest": "^2.0.0"
+  }
+}
