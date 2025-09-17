@@ -20,23 +20,6 @@ function shouldDisableBlobWorker() {
 let workerInstance = null;
 let workerPromise = null;
 
-function isSameOrigin(url) {
-  if (!url || typeof url !== 'string') {
-    return true;
-  }
-  try {
-    const base = globalThis.location?.href || 'http://localhost/';
-    const resolved = new URL(url, base);
-    if (!globalThis.location) {
-      return true;
-    }
-    return resolved.origin === globalThis.location.origin;
-  } catch (error) {
-    console.warn('Failed to evaluate worker origin', error);
-    return false;
-  }
-}
-
 function withTimeout(promise, timeoutMs) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     return promise;
@@ -79,22 +62,29 @@ async function createWorkerInstance(Tesseract, workerOptions, reportStatus) {
       // The error will be handled by the awaiting code.
     });
 
+  let primaryError = null;
   try {
     return await withTimeout(primaryPromise, WORKER_CREATION_TIMEOUT_MS);
   } catch (error) {
     fallbackTriggered = true;
-    const sameOrigin = isSameOrigin(workerOptions.workerPath);
-    if (!sameOrigin) {
-      throw error;
+    primaryError = error;
+  }
+
+  console.warn('Retrying OCR worker initialization without blob URL', primaryError);
+  sendStatus(reportStatus, {
+    status: 'loading',
+    message: 'Retrying OCR engine for Safari',
+    progress: 0.2,
+  });
+
+  const fallbackOptions = { ...workerOptions, workerBlobURL: false };
+  try {
+    return await withTimeout(Tesseract.createWorker(fallbackOptions), WORKER_CREATION_TIMEOUT_MS);
+  } catch (fallbackError) {
+    if (primaryError) {
+      fallbackError.cause = primaryError;
     }
-    console.warn('Retrying OCR worker initialization without blob URL', error);
-    sendStatus(reportStatus, {
-      status: 'loading',
-      message: 'Retrying OCR engine for Safari',
-      progress: 0.2,
-    });
-    const fallbackOptions = { ...workerOptions, workerBlobURL: false };
-    return Tesseract.createWorker(fallbackOptions);
+    throw fallbackError;
   }
 }
 
