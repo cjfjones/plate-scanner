@@ -28,16 +28,16 @@ describe('isLikelyPlate', () => {
     expect(isLikelyPlate('A12')).toBe(false);
   });
 
-  it('accepts reasonable alphanumeric patterns', () => {
+  it('accepts modern UK plate patterns and rejects others', () => {
     expect(isLikelyPlate('AB12CDE')).toBe(true);
-    expect(isLikelyPlate('1234ABC')).toBe(true);
+    expect(isLikelyPlate('1234ABC')).toBe(false);
   });
 });
 
 describe('scorePlateConfidence', () => {
   it('boosts confidence for plates that match known patterns', () => {
-    expect(scorePlateConfidence('AB12CDE', 70)).toBe(80);
-    expect(scorePlateConfidence('ZZZ1234', 40)).toBe(45);
+    expect(scorePlateConfidence('AB12CDE', 70)).toBe(85);
+    expect(scorePlateConfidence('ZZZ1234', 40)).toBe(40);
   });
 
   it('never returns a value above 100 or below 0', () => {

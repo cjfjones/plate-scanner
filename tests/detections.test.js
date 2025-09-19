@@ -39,7 +39,7 @@ describe('wordsToDetections', () => {
     const detection = detections[0];
     expect(detection.plate).toBe('AB12CDE');
     expect(detection.formattedPlate).toBe('AB12 CDE');
-    expect(detection.confidence).toBe(77);
+    expect(detection.confidence).toBe(82);
     expect(detection.source).toBe('camera');
     expect(detection.capturedAt).toBe(new Date('2024-01-02T03:04:05Z').getTime());
     expect(detection.bbox).toEqual({
@@ -74,11 +74,9 @@ describe('wordsToDetections', () => {
       'upload',
     );
 
-    expect(results).toHaveLength(2);
+    expect(results).toHaveLength(1);
     expect(results[0].plate).toBe('AB12CDE');
-    expect(results[0].confidence).toBe(90);
-    expect(results[1].plate).toBe('XYZ1234');
-    expect(results[1].confidence).toBe(75);
+    expect(results[0].confidence).toBe(95);
     expect(results[0].bbox.left).toBeCloseTo(0.05);
   });
 });
