@@ -12,7 +12,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "prepare:ocr": "node ./tools/prepare-tesseract-assets.js",
-    "postinstall": "npm run prepare:ocr"
+    "prepare:alpr": "node ./tools/prepare-alpr-assets.js",
+    "postinstall": "npm run prepare:ocr && npm run prepare:alpr"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^1.6.0",
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",
+    "onnxruntime-web": "^1.22.0",
     "tesseract.js": "^5.1.1"
   }
 }

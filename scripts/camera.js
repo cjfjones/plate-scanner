@@ -1,5 +1,4 @@
-import { wordsToDetections } from './detections.js';
-import { ensureWorker, recognize } from './ocr.js';
+import { analyzeFrame, ensureRecognitionEngine } from './recognition-engine.js';
 
 const CAPTURE_INTERVAL_MS = 3500;
 
@@ -94,7 +93,7 @@ export function createCameraController({
         return;
       }
       ctx.drawImage(video, 0, 0, width, height);
-      const result = await recognize(canvas, (workerState) => {
+      const detections = await analyzeFrame(canvas, 'camera', (workerState) => {
         if (!workerState) {
           return;
         }
@@ -103,13 +102,21 @@ export function createCameraController({
           updateStatus({ state: 'processing' });
         } else if (workerState.status === 'ready') {
           updateStatus({ state: 'scanning' });
+        } else if (workerState.status === 'loading') {
+          const normalizedProgress = normalizeProgress(workerState.progress);
+          if (normalizedProgress !== null) {
+            latestWorkerProgress = Math.max(latestWorkerProgress, normalizedProgress);
+          }
+          updateStatus({
+            state: 'initializing',
+            progress: latestWorkerProgress,
+            message: workerState.message,
+          });
         }
       });
-      if (!result || !result.data) {
+      if (!detections) {
         return;
       }
-      const words = Array.isArray(result.data.words) ? result.data.words : [];
-      const detections = wordsToDetections(words, width, height, 'camera');
       if (typeof onDetections === 'function') {
         onDetections(detections);
       }
@@ -152,7 +159,7 @@ export function createCameraController({
 
       latestWorkerProgress = 0.1;
       updateStatus({ state: 'initializing', progress: latestWorkerProgress });
-      await ensureWorker((workerState) => {
+      await ensureRecognitionEngine((workerState) => {
         if (!workerState) {
           return;
         }

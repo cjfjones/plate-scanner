@@ -45,3 +45,12 @@ ENV/
 # Generated OCR assets (copied from node_modules during install)
 public/vendor/tesseract/*
 !public/vendor/tesseract/README.md
+
+# Generated FastALPR models (downloaded separately)
+public/vendor/fastalpr/*
+!public/vendor/fastalpr/README.md
+!public/vendor/fastalpr/*.yaml
+
+# ONNX Runtime Web binaries (copied from node_modules during install)
+public/vendor/onnxruntime/*
+!public/vendor/onnxruntime/README.md

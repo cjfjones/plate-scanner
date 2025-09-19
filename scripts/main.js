@@ -1,6 +1,5 @@
 import { createCameraController } from './camera.js';
-import { wordsToDetections } from './detections.js';
-import { recognize } from './ocr.js';
+import { analyzeFrame, ensureRecognitionEngine } from './recognition-engine.js';
 import { createPlateStore } from './store.js';
 
 const store = createPlateStore();
@@ -220,7 +219,7 @@ function updateHistoryButtons(hasRecords) {
 
 function describeLoadingStatus(state) {
   const message = typeof state?.message === 'string' ? state.message.trim() : '';
-  const baseLabel = 'Loading OCR';
+  const baseLabel = 'Loading ALPR engine';
   const label = message ? `${baseLabel} — ${message}` : baseLabel;
   const rawProgress = Number(state?.progress);
   if (!Number.isFinite(rawProgress)) {
@@ -403,20 +402,34 @@ async function processFile(file) {
       throw new Error('Canvas drawing is not supported in this browser');
     }
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    setUploadStatus('Running OCR…');
-    const result = await recognize(canvas, (workerState) => {
+    await ensureRecognitionEngine((workerState) => {
       if (!workerState) {
         return;
       }
       logWorkerState('Image upload', workerState);
       if (workerState.status === 'loading') {
-        setUploadStatus('Loading OCR…');
-      } else if (workerState.status === 'processing') {
-        setUploadStatus('Running OCR…');
+        setUploadStatus('Loading ALPR…');
+      } else if (workerState.status === 'ready') {
+        setUploadStatus('Ready', 'ready');
       }
     });
-    const words = Array.isArray(result?.data?.words) ? result.data.words : [];
-    const detections = wordsToDetections(words, canvas.width, canvas.height, 'upload');
+    setUploadStatus('Running ALPR…');
+    const detections = await analyzeFrame(canvas, 'upload', (workerState) => {
+      if (!workerState) {
+        return;
+      }
+      logWorkerState('Image upload', workerState);
+      if (workerState.status === 'loading') {
+        setUploadStatus('Loading ALPR…');
+      } else if (workerState.status === 'processing') {
+        setUploadStatus('Running ALPR…');
+      }
+    });
+    if (!Array.isArray(detections)) {
+      setUploadStatus('No plates found', 'idle');
+      updateLastDetection(null);
+      return;
+    }
     if (detections.length === 0) {
       setUploadStatus('No plates found', 'idle');
       updateLastDetection(null);
