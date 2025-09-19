@@ -41,3 +41,7 @@ ENV/
 
 # Logs
 *.log
+
+# Generated OCR assets (copied from node_modules during install)
+public/vendor/tesseract/*
+!public/vendor/tesseract/README.md
