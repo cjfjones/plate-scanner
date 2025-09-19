@@ -1,5 +1,36 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('../scripts/tesseract-loader.js', () => {
+  const loadTesseract = vi.fn().mockResolvedValue({
+    name: 'jsdelivr',
+    assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
+  });
+  const getWorkerSources = vi.fn(() => [
+    {
+      name: 'jsdelivr',
+      assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
+      failureStatus: {
+        status: 'loading',
+        message: 'Retrying OCR engine download from an alternate CDN',
+        progress: 0.18,
+      },
+    },
+    {
+      name: 'unpkg',
+      assetBaseUrl: 'https://unpkg.com/tesseract.js@5/dist/',
+      failureStatus: {
+        status: 'loading',
+        message: 'Retrying OCR engine download from an alternate CDN',
+        progress: 0.18,
+      },
+    },
+  ]);
+
+  return { loadTesseract, getWorkerSources };
+});
+
 import { ensureWorker, terminateWorker } from '../scripts/ocr.js';
+import { loadTesseract, getWorkerSources } from '../scripts/tesseract-loader.js';
 
 function createWorkerStub() {
   return {
@@ -29,6 +60,32 @@ describe('ensureWorker fallback behaviour', () => {
     originalNavigator = globalThis.navigator;
     originalTesseract = globalThis.Tesseract;
     vi.useFakeTimers();
+    loadTesseract.mockClear();
+    getWorkerSources.mockClear();
+    loadTesseract.mockResolvedValue({
+      name: 'jsdelivr',
+      assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
+    });
+    getWorkerSources.mockReturnValue([
+      {
+        name: 'jsdelivr',
+        assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
+        failureStatus: {
+          status: 'loading',
+          message: 'Retrying OCR engine download from an alternate CDN',
+          progress: 0.18,
+        },
+      },
+      {
+        name: 'unpkg',
+        assetBaseUrl: 'https://unpkg.com/tesseract.js@5/dist/',
+        failureStatus: {
+          status: 'loading',
+          message: 'Retrying OCR engine download from an alternate CDN',
+          progress: 0.18,
+        },
+      },
+    ]);
   });
 
   afterEach(async () => {
@@ -117,5 +174,32 @@ describe('ensureWorker fallback behaviour', () => {
 
     expect(worker).toBe(workerStub);
     expect(createWorker).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to an alternate CDN when the primary worker assets fail', async () => {
+    const workerStub = createWorkerStub();
+    const createWorker = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('CDN blocked'))
+      .mockResolvedValue(workerStub);
+
+    globalThis.Tesseract = { createWorker };
+    globalThis.navigator = {
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      vendor: 'Google Inc.',
+    };
+
+    const worker = await ensureWorker();
+
+    expect(loadTesseract).toHaveBeenCalled();
+    expect(worker).toBe(workerStub);
+    expect(createWorker).toHaveBeenCalledTimes(2);
+    const primaryOptions = createWorker.mock.calls[0][2];
+    const fallbackOptions = createWorker.mock.calls[1][2];
+    expect(primaryOptions.workerPath).toBe('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js');
+    expect(fallbackOptions.workerPath).toBe('https://unpkg.com/tesseract.js@5/dist/worker.min.js');
+    expect(fallbackOptions.corePath).toBe('https://unpkg.com/tesseract.js@5/dist/tesseract-core.wasm.js');
+    expect(fallbackOptions.langPath).toBe('https://unpkg.com/tesseract.js@5/dist/langs/');
   });
 });

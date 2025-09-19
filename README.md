@@ -10,8 +10,8 @@ loaded via WebAssembly, all computation stays on-device, and encounter history i
 - 🎥 **Live camera scanning** – request the rear camera, capture frames every few seconds, and highlight detected plates.
 - 🖼 **Still image processing** – upload a photo when camera permissions are unavailable.
 - 📊 **Local stats** – encounters are aggregated in `localStorage`, can be exported as CSV, and cleared at any time.
-- 🌐 **Static hosting** – the project ships as plain HTML/CSS/JS with CDN-hosted dependencies so it works on GitHub Pages without
-  installing Node packages.
+- 🌐 **Static hosting** – the project ships as plain HTML/CSS/JS and loads Tesseract.js from multiple CDNs at runtime so it works on
+  GitHub Pages without installing Node packages.
 
 ## Getting Started
 
@@ -61,7 +61,7 @@ DEV_PLAN.md         # Development notes from the original project
 
 ## How it works
 
-- `scripts/ocr.js` loads Tesseract.js from a CDN and keeps a single worker alive to process frames.
+- `scripts/ocr.js` dynamically loads the Tesseract.js library from multiple CDN mirrors and keeps a single worker alive to process frames.
 - `scripts/camera.js` captures frames from `getUserMedia`, throttles recognition, and forwards detections.
 - `scripts/store.js` tracks encounter history in `localStorage` and exposes helpers for exporting or clearing data.
 - `scripts/main.js` wires the UI, camera controller, store updates, and still image uploads together.
@@ -69,7 +69,7 @@ DEV_PLAN.md         # Development notes from the original project
 ## Browser Support
 
 - Modern Chromium, Firefox, and Safari browsers that support ES modules and `getUserMedia` (iOS 15+).
-- Because the OCR model is fetched from a CDN, the first load may take a few seconds depending on network speed.
+- Because the OCR model is fairly large, the first load may take a few seconds depending on network speed.
 
 ## License
 

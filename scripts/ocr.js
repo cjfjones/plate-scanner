@@ -1,4 +1,5 @@
-const CDN_BASE = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/';
+import { loadTesseract, getWorkerSources } from './tesseract-loader.js';
+
 const DEFAULT_LANGUAGE = 'eng';
 const DEFAULT_WORKER_CREATION_TIMEOUT_MS = 120000;
 const SAFARI_BLOB_WORKER_TIMEOUT_MS = 8000;
@@ -113,6 +114,30 @@ function sendStatus(reportStatus, state) {
   }
 }
 
+function createWorkerOptions(source, reportStatus) {
+  const baseUrl = source.assetBaseUrl || source.baseUrl;
+  if (!baseUrl) {
+    throw new Error(`Invalid OCR worker source configuration for ${source?.name || 'unknown source'}`);
+  }
+  const langPath = source.langPathBaseUrl || `${baseUrl}langs/`;
+  return {
+    workerPath: `${baseUrl}worker.min.js`,
+    corePath: `${baseUrl}tesseract-core.wasm.js`,
+    langPath,
+    logger: (message) => {
+      if (!message) {
+        return;
+      }
+      const progress = typeof message.progress === 'number' ? message.progress : undefined;
+      sendStatus(reportStatus, {
+        status: 'loading',
+        message: message.status || 'Loading',
+        progress,
+      });
+    },
+  };
+}
+
 export async function ensureWorker(reportStatus) {
   if (workerInstance) {
     sendStatus(reportStatus, { status: 'ready' });
@@ -121,26 +146,33 @@ export async function ensureWorker(reportStatus) {
 
   if (!workerPromise) {
     workerPromise = (async () => {
+      await loadTesseract((state) => sendStatus(reportStatus, state));
       const Tesseract = getTesseract();
       sendStatus(reportStatus, { status: 'loading', message: 'Preparing OCR engine', progress: 0 });
-      const workerOptions = {
-        workerPath: `${CDN_BASE}worker.min.js`,
-        corePath: `${CDN_BASE}tesseract-core.wasm.js`,
-        langPath: `${CDN_BASE}langs/`,
-        logger: (message) => {
-          if (!message) {
-            return;
+      let worker = null;
+      let lastError = null;
+      const workerSources = getWorkerSources();
+      for (const source of workerSources) {
+        const workerOptions = createWorkerOptions(source, reportStatus);
+        try {
+          worker = await createWorkerInstance(Tesseract, workerOptions, reportStatus);
+          break;
+        } catch (error) {
+          lastError = error;
+          console.warn(`Failed to initialize OCR worker from ${source.name}`, error);
+          if (source.failureStatus) {
+            sendStatus(reportStatus, source.failureStatus);
           }
-          const progress = typeof message.progress === 'number' ? message.progress : undefined;
-          sendStatus(reportStatus, {
-            status: 'loading',
-            message: message.status || 'Loading',
-            progress,
-          });
-        },
-      };
+        }
+      }
 
-      const worker = await createWorkerInstance(Tesseract, workerOptions, reportStatus);
+      if (!worker) {
+        const failure = new Error('Failed to load OCR engine. Check your network connection and try again.');
+        if (lastError) {
+          failure.cause = lastError;
+        }
+        throw failure;
+      }
 
       sendStatus(reportStatus, { status: 'loading', message: 'Loading OCR engine', progress: 0.4 });
       await worker.load();
