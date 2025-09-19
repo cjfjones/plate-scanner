@@ -67,7 +67,7 @@ describe('ensureWorker fallback behaviour', () => {
 
     expect(worker).toBe(workerStub);
     expect(createWorker).toHaveBeenCalledTimes(2);
-    expect(createWorker.mock.calls[1][0].workerBlobURL).toBe(false);
+    expect(createWorker.mock.calls[1][2].workerBlobURL).toBe(false);
   });
 
   it('allows the Safari fallback worker extra time to initialise', async () => {
