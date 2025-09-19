@@ -1,4 +1,5 @@
 const CDN_BASE = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/';
+const DEFAULT_LANGUAGE = 'eng';
 const DEFAULT_WORKER_CREATION_TIMEOUT_MS = 120000;
 const SAFARI_BLOB_WORKER_TIMEOUT_MS = 8000;
 const FALLBACK_WORKER_CREATION_TIMEOUT_MS = 180000;
@@ -44,7 +45,7 @@ function withTimeout(promise, timeoutMs) {
 
 async function createWorkerInstance(Tesseract, workerOptions, reportStatus) {
   const shouldTryFallback = shouldDisableBlobWorker();
-  const primaryPromise = Tesseract.createWorker(workerOptions);
+  const primaryPromise = Tesseract.createWorker(DEFAULT_LANGUAGE, undefined, workerOptions);
 
   if (!shouldTryFallback) {
     return withTimeout(primaryPromise, DEFAULT_WORKER_CREATION_TIMEOUT_MS);
@@ -83,7 +84,7 @@ async function createWorkerInstance(Tesseract, workerOptions, reportStatus) {
   const fallbackOptions = { ...workerOptions, workerBlobURL: false };
   try {
     return await withTimeout(
-      Tesseract.createWorker(fallbackOptions),
+      Tesseract.createWorker(DEFAULT_LANGUAGE, undefined, fallbackOptions),
       FALLBACK_WORKER_CREATION_TIMEOUT_MS,
     );
   } catch (fallbackError) {
@@ -144,9 +145,9 @@ export async function ensureWorker(reportStatus) {
       sendStatus(reportStatus, { status: 'loading', message: 'Loading OCR engine', progress: 0.4 });
       await worker.load();
       sendStatus(reportStatus, { status: 'loading', message: 'Loading English language', progress: 0.6 });
-      await worker.loadLanguage('eng');
+      await worker.loadLanguage(DEFAULT_LANGUAGE);
       sendStatus(reportStatus, { status: 'loading', message: 'Initializing OCR', progress: 0.8 });
-      await worker.initialize('eng');
+      await worker.initialize(DEFAULT_LANGUAGE);
       workerInstance = worker;
       sendStatus(reportStatus, { status: 'ready' });
       return workerInstance;
