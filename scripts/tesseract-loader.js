@@ -32,6 +32,7 @@ const TESSERACT_SOURCES = [
     displayName: 'jsDelivr',
     scriptUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
     assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/tesseract-core.wasm.js',
     langPathBaseUrl: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0',
     failureStatus: {
       status: 'loading',
@@ -44,6 +45,7 @@ const TESSERACT_SOURCES = [
     displayName: 'cdnjs',
     scriptUrl: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.0/tesseract.min.js',
     assetBaseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.0/',
+    corePath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js-core/5.0.0/tesseract-core.wasm.js',
     langPathBaseUrl: 'https://tessdata.projectnaptha.com/4.0.0',
     failureStatus: {
       status: 'loading',
@@ -56,6 +58,7 @@ const TESSERACT_SOURCES = [
     displayName: 'unpkg',
     scriptUrl: 'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js',
     assetBaseUrl: 'https://unpkg.com/tesseract.js@5/dist/',
+    corePath: 'https://unpkg.com/tesseract.js-core@5.0.0/tesseract-core.wasm.js',
     langPathBaseUrl: 'https://unpkg.com/@tesseract.js-data/eng@1.0.0/4.0.0',
     failureStatus: {
       status: 'loading',

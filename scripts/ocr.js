@@ -120,9 +120,11 @@ function createWorkerOptions(source, reportStatus) {
     throw new Error(`Invalid OCR worker source configuration for ${source?.name || 'unknown source'}`);
   }
   const langPath = source.langPathBaseUrl || `${baseUrl}langs/`;
+  const workerPath = source.workerPath || `${baseUrl}worker.min.js`;
+  const corePath = source.corePath || `${baseUrl}tesseract-core.wasm.js`;
   return {
-    workerPath: `${baseUrl}worker.min.js`,
-    corePath: `${baseUrl}tesseract-core.wasm.js`,
+    workerPath,
+    corePath,
     langPath,
     logger: (message) => {
       if (!message) {
