@@ -99,7 +99,7 @@ async function createWorkerInstance(Tesseract, workerOptions, reportStatus) {
 function getTesseract() {
   const tesseract = globalThis.Tesseract;
   if (!tesseract) {
-    throw new Error('Tesseract.js failed to load. Check your network connection.');
+    throw new Error('Tesseract.js failed to load. Check your installation or network connection.');
   }
   return tesseract;
 }
@@ -167,7 +167,7 @@ export async function ensureWorker(reportStatus) {
       }
 
       if (!worker) {
-        const failure = new Error('Failed to load OCR engine. Check your network connection and try again.');
+        const failure = new Error('Failed to load OCR engine. Check your installation or network connection and try again.');
         if (lastError) {
           failure.cause = lastError;
         }

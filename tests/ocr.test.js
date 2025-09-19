@@ -1,11 +1,31 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+const { LOCAL_ASSET_BASE } = vi.hoisted(() => {
+  const baseUrl = import.meta.env?.BASE_URL ?? '/';
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return { LOCAL_ASSET_BASE: `${normalizedBase}vendor/tesseract/` };
+});
+
 vi.mock('../scripts/tesseract-loader.js', () => {
   const loadTesseract = vi.fn().mockResolvedValue({
-    name: 'jsdelivr',
-    assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
+    name: 'local',
+    assetBaseUrl: LOCAL_ASSET_BASE,
+    failureStatus: {
+      status: 'loading',
+      message: 'Retrying OCR engine download from an alternate source',
+      progress: 0.18,
+    },
   });
   const getWorkerSources = vi.fn(() => [
+    {
+      name: 'local',
+      assetBaseUrl: LOCAL_ASSET_BASE,
+      failureStatus: {
+        status: 'loading',
+        message: 'Retrying OCR engine download from an alternate source',
+        progress: 0.18,
+      },
+    },
     {
       name: 'jsdelivr',
       assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
@@ -63,10 +83,24 @@ describe('ensureWorker fallback behaviour', () => {
     loadTesseract.mockClear();
     getWorkerSources.mockClear();
     loadTesseract.mockResolvedValue({
-      name: 'jsdelivr',
-      assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
+      name: 'local',
+      assetBaseUrl: LOCAL_ASSET_BASE,
+      failureStatus: {
+        status: 'loading',
+        message: 'Retrying OCR engine download from an alternate source',
+        progress: 0.18,
+      },
     });
     getWorkerSources.mockReturnValue([
+      {
+        name: 'local',
+        assetBaseUrl: LOCAL_ASSET_BASE,
+        failureStatus: {
+          status: 'loading',
+          message: 'Retrying OCR engine download from an alternate source',
+          progress: 0.18,
+        },
+      },
       {
         name: 'jsdelivr',
         assetBaseUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/',
@@ -197,9 +231,11 @@ describe('ensureWorker fallback behaviour', () => {
     expect(createWorker).toHaveBeenCalledTimes(2);
     const primaryOptions = createWorker.mock.calls[0][2];
     const fallbackOptions = createWorker.mock.calls[1][2];
-    expect(primaryOptions.workerPath).toBe('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js');
-    expect(fallbackOptions.workerPath).toBe('https://unpkg.com/tesseract.js@5/dist/worker.min.js');
-    expect(fallbackOptions.corePath).toBe('https://unpkg.com/tesseract.js@5/dist/tesseract-core.wasm.js');
-    expect(fallbackOptions.langPath).toBe('https://unpkg.com/tesseract.js@5/dist/langs/');
+    expect(primaryOptions.workerPath).toBe(`${LOCAL_ASSET_BASE}worker.min.js`);
+    expect(primaryOptions.corePath).toBe(`${LOCAL_ASSET_BASE}tesseract-core.wasm.js`);
+    expect(primaryOptions.langPath).toBe(`${LOCAL_ASSET_BASE}langs/`);
+    expect(fallbackOptions.workerPath).toBe('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js');
+    expect(fallbackOptions.corePath).toBe('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract-core.wasm.js');
+    expect(fallbackOptions.langPath).toBe('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/langs/');
   });
 });

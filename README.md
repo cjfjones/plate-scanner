@@ -10,8 +10,8 @@ loaded via WebAssembly, all computation stays on-device, and encounter history i
 - 🎥 **Live camera scanning** – request the rear camera, capture frames every few seconds, and highlight detected plates.
 - 🖼 **Still image processing** – upload a photo when camera permissions are unavailable.
 - 📊 **Local stats** – encounters are aggregated in `localStorage`, can be exported as CSV, and cleared at any time.
-- 🌐 **Static hosting** – the project ships as plain HTML/CSS/JS and loads Tesseract.js from multiple CDNs at runtime so it works on
-  GitHub Pages without installing Node packages.
+- 🌐 **Static hosting** – the project ships as plain HTML/CSS/JS with the OCR engine bundled locally and optional CDN fallbacks, so
+  it works on GitHub Pages without installing Node packages.
 
 ## Getting Started
 
@@ -38,6 +38,11 @@ npm run test:run   # execute the unit test suite once
 
 Use `npm test` if you prefer to keep Vitest running in watch mode.
 
+Running `npm install` also copies the Tesseract runtime, worker, and English
+language data from `node_modules` into `public/vendor/tesseract` so the app can
+load them without relying on third-party CDNs. If you ever need to refresh the
+local assets manually, run `npm run prepare:ocr`.
+
 On iOS devices you must access the site over HTTPS (GitHub Pages does this automatically). When testing locally with a phone,
 use a tool that provides HTTPS tunnelling (for example, `ngrok`) or host the static files from a service that offers HTTPS.
 
@@ -61,7 +66,7 @@ DEV_PLAN.md         # Development notes from the original project
 
 ## How it works
 
-- `scripts/ocr.js` dynamically loads the Tesseract.js library from multiple CDN mirrors and keeps a single worker alive to process frames.
+- `scripts/ocr.js` dynamically loads the Tesseract.js library from a local bundle (with CDN mirrors as fallbacks) and keeps a single worker alive to process frames.
 - `scripts/camera.js` captures frames from `getUserMedia`, throttles recognition, and forwards detections.
 - `scripts/store.js` tracks encounter history in `localStorage` and exposes helpers for exporting or clearing data.
 - `scripts/main.js` wires the UI, camera controller, store updates, and still image uploads together.
