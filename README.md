@@ -26,6 +26,18 @@ python -m http.server 8000
 # then open http://localhost:8000/ in your browser
 ```
 
+### Development tooling
+
+This repository now includes optional Node-based tooling to help with local development.
+
+```bash
+npm install        # install dev dependencies (Vite + Vitest)
+npm run dev        # start a local dev server with hot reloading
+npm run test:run   # execute the unit test suite once
+```
+
+Use `npm test` if you prefer to keep Vitest running in watch mode.
+
 On iOS devices you must access the site over HTTPS (GitHub Pages does this automatically). When testing locally with a phone,
 use a tool that provides HTTPS tunnelling (for example, `ngrok`) or host the static files from a service that offers HTTPS.
 
