@@ -1,5 +1,7 @@
 const CDN_BASE = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/';
-const WORKER_CREATION_TIMEOUT_MS = 25000;
+const DEFAULT_WORKER_CREATION_TIMEOUT_MS = 120000;
+const SAFARI_BLOB_WORKER_TIMEOUT_MS = 8000;
+const FALLBACK_WORKER_CREATION_TIMEOUT_MS = 180000;
 
 function shouldDisableBlobWorker() {
   const nav = globalThis.navigator;
@@ -42,12 +44,13 @@ function withTimeout(promise, timeoutMs) {
 
 async function createWorkerInstance(Tesseract, workerOptions, reportStatus) {
   const shouldTryFallback = shouldDisableBlobWorker();
+  const primaryPromise = Tesseract.createWorker(workerOptions);
+
   if (!shouldTryFallback) {
-    return Tesseract.createWorker(workerOptions);
+    return withTimeout(primaryPromise, DEFAULT_WORKER_CREATION_TIMEOUT_MS);
   }
 
   let fallbackTriggered = false;
-  const primaryPromise = Tesseract.createWorker(workerOptions);
   primaryPromise
     .then(async (worker) => {
       if (fallbackTriggered && worker && typeof worker.terminate === 'function') {
@@ -64,7 +67,7 @@ async function createWorkerInstance(Tesseract, workerOptions, reportStatus) {
 
   let primaryError = null;
   try {
-    return await withTimeout(primaryPromise, WORKER_CREATION_TIMEOUT_MS);
+    return await withTimeout(primaryPromise, SAFARI_BLOB_WORKER_TIMEOUT_MS);
   } catch (error) {
     fallbackTriggered = true;
     primaryError = error;
@@ -79,7 +82,10 @@ async function createWorkerInstance(Tesseract, workerOptions, reportStatus) {
 
   const fallbackOptions = { ...workerOptions, workerBlobURL: false };
   try {
-    return await withTimeout(Tesseract.createWorker(fallbackOptions), WORKER_CREATION_TIMEOUT_MS);
+    return await withTimeout(
+      Tesseract.createWorker(fallbackOptions),
+      FALLBACK_WORKER_CREATION_TIMEOUT_MS,
+    );
   } catch (fallbackError) {
     if (primaryError) {
       fallbackError.cause = primaryError;
