@@ -81,6 +81,12 @@ app:
    bundled paths if available. When no local ONNX Runtime assets are present,
    the app automatically falls back to the jsDelivr or unpkg CDNs.
 
+The loader reads `public/vendor/fastalpr/manifest.json` and
+`public/vendor/onnxruntime/manifest.json` to decide whether bundled assets are
+available. Running `npm run prepare:alpr` refreshes those manifests with the
+current file metadata; if you publish models elsewhere you can edit the
+manifests or set `window.fastAlprAssetConfig` to point at your CDN locations.
+
 On iOS devices you must access the site over HTTPS (GitHub Pages does this automatically). When testing locally with a phone,
 use a tool that provides HTTPS tunnelling (for example, `ngrok`) or host the static files from a service that offers HTTPS.
 

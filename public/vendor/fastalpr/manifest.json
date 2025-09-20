@@ -1,0 +1,15 @@
+{
+  "generatedAt": null,
+  "modelsAvailable": false,
+  "models": [],
+  "modelBaseUrls": [],
+  "detectorModelUrls": [],
+  "ocrModelUrls": [],
+  "ocrConfigUrls": [
+    "vendor/fastalpr/global_mobile_vit_v2_ocr_config.yaml"
+  ],
+  "configAvailable": true,
+  "config": {
+    "path": "vendor/fastalpr/global_mobile_vit_v2_ocr_config.yaml"
+  }
+}

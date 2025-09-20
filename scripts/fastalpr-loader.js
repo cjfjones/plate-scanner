@@ -1,8 +1,10 @@
 import { withBase } from './assetPaths.js';
 
 const DEFAULT_ORT_VERSION = '1.22.0';
+const SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 let ortLoadPromise = null;
+let ortManifestPromise = null;
 
 function hasDom() {
   return typeof document !== 'undefined' && typeof document.createElement === 'function';
@@ -26,18 +28,46 @@ function ensureTrailingSlash(value) {
   return value.endsWith('/') ? value : `${value}/`;
 }
 
-function getOrtSources() {
+function resolveUrlCandidate(value) {
+  const trimmed = trimValue(value);
+  if (!trimmed) {
+    return '';
+  }
+  if (SCHEME_PATTERN.test(trimmed) || trimmed.startsWith('//')) {
+    return trimmed;
+  }
+  return withBase(trimmed);
+}
+
+async function loadOrtManifest() {
+  if (typeof fetch !== 'function') {
+    return null;
+  }
+  if (!ortManifestPromise) {
+    const manifestUrl = withBase('vendor/onnxruntime/manifest.json');
+    ortManifestPromise = fetch(manifestUrl, { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null);
+  }
+  return ortManifestPromise;
+}
+
+async function getOrtSources() {
   const config = globalThis.fastAlprAssetConfig || {};
+  const manifest = await loadOrtManifest();
   const sources = [];
   const seen = new Set();
 
   const addSource = ({ scriptUrl, wasmBaseUrl, label }) => {
-    const cleanedScriptUrl = trimValue(scriptUrl);
+    let cleanedScriptUrl = resolveUrlCandidate(scriptUrl);
     if (!cleanedScriptUrl || seen.has(cleanedScriptUrl)) {
       return;
     }
     seen.add(cleanedScriptUrl);
     let resolvedWasmBase = trimValue(wasmBaseUrl);
+    if (resolvedWasmBase) {
+      resolvedWasmBase = ensureTrailingSlash(resolveUrlCandidate(resolvedWasmBase));
+    }
     if (!resolvedWasmBase) {
       const lastSlash = cleanedScriptUrl.lastIndexOf('/');
       if (lastSlash !== -1) {
@@ -52,16 +82,43 @@ function getOrtSources() {
   };
 
   const addFromBase = (baseUrl, label) => {
-    const cleanedBase = ensureTrailingSlash(trimValue(baseUrl));
-    if (!cleanedBase) {
+    const resolvedBase = ensureTrailingSlash(resolveUrlCandidate(baseUrl));
+    if (!resolvedBase) {
       return;
     }
     addSource({
-      scriptUrl: `${cleanedBase}ort.all.min.js`,
-      wasmBaseUrl: cleanedBase,
+      scriptUrl: `${resolvedBase}ort.all.min.js`,
+      wasmBaseUrl: resolvedBase,
       label,
     });
   };
+
+  const manifestSources = toArray(manifest?.sources);
+  for (const source of manifestSources) {
+    if (!source) {
+      continue;
+    }
+    if (typeof source === 'string') {
+      addSource({ scriptUrl: source, label: 'manifest source' });
+    } else if (typeof source === 'object') {
+      addSource({
+        scriptUrl: source.scriptUrl || source.url || source.src,
+        wasmBaseUrl: source.wasmBaseUrl || source.baseUrl,
+        label: source.label || 'manifest source',
+      });
+    }
+  }
+
+  toArray(manifest?.baseUrls).forEach((base) => {
+    addFromBase(base, 'manifest base');
+  });
+
+  toArray(manifest?.scriptUrls).forEach((script) => {
+    addSource({
+      scriptUrl: script,
+      label: 'manifest script',
+    });
+  });
 
   const customSources = toArray(config.onnxRuntimeSources);
   for (const source of customSources) {
@@ -90,7 +147,10 @@ function getOrtSources() {
     });
   });
 
-  addFromBase(withBase('vendor/onnxruntime/'), 'local vendor');
+  const shouldIncludeLocalVendor = manifest ? manifest.bundled !== false : true;
+  if (shouldIncludeLocalVendor) {
+    addFromBase('vendor/onnxruntime/', 'local vendor');
+  }
   addFromBase(`https://cdn.jsdelivr.net/npm/onnxruntime-web@${DEFAULT_ORT_VERSION}/dist/`, 'jsDelivr CDN');
   addFromBase(`https://unpkg.com/onnxruntime-web@${DEFAULT_ORT_VERSION}/dist/`, 'unpkg CDN');
 
@@ -124,7 +184,7 @@ export async function ensureOrtRuntime(reportStatus) {
 
   if (!ortLoadPromise) {
     ortLoadPromise = (async () => {
-      const sources = getOrtSources();
+      const sources = await getOrtSources();
       const errors = [];
 
       for (const source of sources) {
@@ -172,4 +232,5 @@ export async function ensureOrtRuntime(reportStatus) {
 
 export function resetOrtLoaderForTests() {
   ortLoadPromise = null;
+  ortManifestPromise = null;
 }
