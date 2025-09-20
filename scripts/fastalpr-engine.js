@@ -5,6 +5,7 @@ import { wordsToDetections } from './detections.js';
 const DETECTOR_MODEL_FILENAME = 'yolo-v9-t-384-license-plates-end2end.onnx';
 const OCR_MODEL_FILENAME = 'global_mobile_vit_v2_ocr.onnx';
 const OCR_CONFIG_FILENAME = 'global_mobile_vit_v2_ocr_config.yaml';
+const SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 function toArray(value) {
   if (!value) {
@@ -55,26 +56,93 @@ function buildCandidateList(overrides, baseUrls, filename) {
   return dedupeStrings(candidates);
 }
 
-function getAssetConfig() {
+function resolveAssetUrl(url) {
+  const trimmed = trimValue(url);
+  if (!trimmed) {
+    return '';
+  }
+  if (SCHEME_PATTERN.test(trimmed) || trimmed.startsWith('//')) {
+    return trimmed;
+  }
+  return withBase(trimmed);
+}
+
+function resolveBaseCandidate(value) {
+  const resolved = resolveAssetUrl(value);
+  return resolved ? ensureTrailingSlash(resolved) : '';
+}
+
+async function loadFastAlprManifest() {
+  if (typeof fetch !== 'function') {
+    return null;
+  }
+  if (!fastAlprManifestPromise) {
+    const manifestUrl = withBase('vendor/fastalpr/manifest.json');
+    fastAlprManifestPromise = fetch(manifestUrl, { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null);
+  }
+  return fastAlprManifestPromise;
+}
+
+async function getAssetConfig() {
   const config = globalThis.fastAlprAssetConfig || {};
+  const manifest = await loadFastAlprManifest();
 
-  const baseOverrides = toArray(config.modelBaseUrls ?? config.modelBaseUrl);
-  baseOverrides.push(withBase('vendor/fastalpr/'));
-  const normalizedBases = dedupeStrings(baseOverrides.map((base) => ensureTrailingSlash(trimValue(base))).filter(Boolean));
-
-  const detectorOverrides = toArray(config.detectorModelUrls ?? config.detectorModelUrl);
-  const ocrOverrides = toArray(config.ocrModelUrls ?? config.ocrModelUrl);
-  const configOverrides = toArray(config.ocrConfigUrls ?? config.ocrConfigUrl);
-
-  const detectorModelUrls = buildCandidateList(detectorOverrides, normalizedBases, DETECTOR_MODEL_FILENAME);
-  const ocrModelUrls = buildCandidateList(ocrOverrides, normalizedBases, OCR_MODEL_FILENAME);
-
-  const configCandidates = [
-    ...configOverrides,
-    ...normalizedBases.map((base) => `${ensureTrailingSlash(base)}${OCR_CONFIG_FILENAME}`),
-    withBase(`vendor/fastalpr/${OCR_CONFIG_FILENAME}`),
+  const baseCandidates = [
+    ...toArray(config.modelBaseUrls ?? config.modelBaseUrl),
+    ...toArray(manifest?.modelBaseUrls),
   ];
-  const ocrConfigUrls = dedupeStrings(configCandidates);
+
+  const shouldIncludeLocalBase = manifest ? manifest.modelsAvailable !== false : true;
+  if (shouldIncludeLocalBase) {
+    baseCandidates.push('vendor/fastalpr/');
+  }
+
+  const normalizedBases = dedupeStrings(baseCandidates.map(resolveBaseCandidate).filter(Boolean));
+
+  const detectorOverrides = [
+    ...toArray(config.detectorModelUrls ?? config.detectorModelUrl),
+    ...toArray(manifest?.detectorModelUrls),
+  ]
+    .map(resolveAssetUrl)
+    .filter(Boolean);
+
+  const ocrOverrides = [
+    ...toArray(config.ocrModelUrls ?? config.ocrModelUrl),
+    ...toArray(manifest?.ocrModelUrls),
+  ]
+    .map(resolveAssetUrl)
+    .filter(Boolean);
+
+  const configOverrides = [
+    ...toArray(config.ocrConfigUrls ?? config.ocrConfigUrl),
+    ...toArray(manifest?.ocrConfigUrls),
+  ]
+    .map(resolveAssetUrl)
+    .filter(Boolean);
+
+  const detectorModelUrls = dedupeStrings([
+    ...detectorOverrides,
+    ...buildCandidateList([], normalizedBases, DETECTOR_MODEL_FILENAME),
+  ]);
+
+  const ocrModelUrls = dedupeStrings([
+    ...ocrOverrides,
+    ...buildCandidateList([], normalizedBases, OCR_MODEL_FILENAME),
+  ]);
+
+  const configCandidates = [...configOverrides];
+  for (const base of normalizedBases) {
+    configCandidates.push(`${ensureTrailingSlash(base)}${OCR_CONFIG_FILENAME}`);
+  }
+
+  const shouldIncludeLocalConfig = manifest ? manifest.configAvailable !== false : true;
+  if (shouldIncludeLocalConfig) {
+    configCandidates.push(resolveAssetUrl(`vendor/fastalpr/${OCR_CONFIG_FILENAME}`));
+  }
+
+  const ocrConfigUrls = dedupeStrings(configCandidates.filter(Boolean));
 
   return {
     detectorModelUrls,
@@ -91,6 +159,7 @@ const BOX_EXPANSION_X = 0.1;
 const BOX_EXPANSION_Y = 0.2;
 
 let enginePromise = null;
+let fastAlprManifestPromise = null;
 
 function notify(reportStatus, state) {
   if (typeof reportStatus === 'function' && state) {
@@ -510,7 +579,7 @@ class FastAlprEngine {
 
 async function createFastAlprEngine(reportStatus) {
   const ort = await ensureOrtRuntime((state) => notify(reportStatus, state));
-  const assetConfig = getAssetConfig();
+  const assetConfig = await getAssetConfig();
   notify(reportStatus, { status: 'loading', message: 'Fetching detector model', progress: 0.15 });
   const [detectorBuffer, ocrBuffer, configText] = await Promise.all([
     fetchWithFallback(assetConfig.detectorModelUrls, fetchArrayBufferFromUrl, 'FastALPR detector model'),
@@ -559,4 +628,5 @@ export async function analyzeWithFastAlpr(canvas, source, reportStatus) {
 
 export function resetFastAlprForTests() {
   enginePromise = null;
+  fastAlprManifestPromise = null;
 }
