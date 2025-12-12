@@ -33,10 +33,9 @@ This repository now includes optional Node-based tooling to help with local deve
 ```bash
 npm install        # install dev dependencies (Vite + Vitest)
 npm run dev        # start a local dev server with hot reloading
-npm run test:run   # execute the unit test suite once
+npm run test       # execute the unit test suite once
+npm run test:watch # keep Vitest running in watch mode
 ```
-
-Use `npm test` if you prefer to keep Vitest running in watch mode.
 
 Running `npm install` also copies the Tesseract runtime, English language data,
 and ONNX Runtime binaries into the `public/vendor` folder so the app can load

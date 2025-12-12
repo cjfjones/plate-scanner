@@ -103,12 +103,7 @@ function getBaseUrl() {
   }
 
   if (typeof import.meta !== 'undefined' && typeof import.meta.url === 'string') {
-    try {
-      const parentUrl = new URL('../', import.meta.url);
-      candidates.push(parentUrl.href);
-    } catch (error) {
-      candidates.push(import.meta.url);
-    }
+    candidates.push(import.meta.url);
   }
 
   for (const candidate of candidates) {
