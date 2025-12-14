@@ -1,6 +1,5 @@
 {
-  "generatedAt": null,
-  "modelsAvailable": false,
+  "generatedAt": "2025-12-14T08:37:30.470Z",
   "models": [],
   "modelBaseUrls": [],
   "detectorModelUrls": [],
@@ -9,7 +8,11 @@
     "vendor/fastalpr/global_mobile_vit_v2_ocr_config.yaml"
   ],
   "configAvailable": true,
+  "modelsAvailable": false,
   "config": {
+    "filename": "global_mobile_vit_v2_ocr_config.yaml",
+    "bytes": 507,
+    "modified": "2025-12-14T08:36:34.349Z",
     "path": "vendor/fastalpr/global_mobile_vit_v2_ocr_config.yaml"
   }
 }
