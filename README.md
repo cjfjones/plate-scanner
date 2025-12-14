@@ -17,6 +17,14 @@ is loaded via WebAssembly, all computation stays on-device, and encounter histor
 
 No build step is required. Serve the `index.html` file over HTTPS so the browser will grant camera access.
 
+### Running from GitHub on iPhone
+
+You can use the app entirely from GitHub without a local laptop:
+
+- **GitHub Pages (simplest):** fork the repo, enable Pages to serve from the repository root, then open the GitHub Pages URL (HTTPS) in Safari on iOS.
+- **Codespaces in mobile Safari:** create a Codespace for the repo, start the dev server with `npm run dev -- --host --port 4173`, and use the forwarded HTTPS port shown in the Ports panel. Open that forwarded URL in a new Safari tab on your iPhone to grant camera access.
+- **Direct HTML preview:** even without Node, tap `index.html` in the repository, choose **Raw**, and share the URL to yourself. Opening it directly in Safari works for uploads; live camera access still requires HTTPS hosting (Pages/Codespaces/ngrok).
+
 ### Quick preview
 
 Open the file directly or run a lightweight static server:
@@ -94,6 +102,25 @@ use a tool that provides HTTPS tunnelling (for example, `ngrok`) or host the sta
 1. Commit the repository contents (including `index.html`, `scripts/`, and `styles/`).
 2. Push to GitHub and enable **Pages** → **Deploy from branch** (for example, `main` → `/`).
 3. Wait for the GitHub Pages build to finish, then visit `https://<user>.github.io/<repo>/` from your desktop or phone.
+
+If you see 404s like `vendor/onnxruntime/manifest.json` or `vendor/fastalpr/*.onnx` in the in-app debug log when running from Pages:
+
+- Make sure you ran `npm run prepare:alpr` locally so `public/vendor/onnxruntime/*` and the manifests exist before pushing.
+- Host the FastALPR detector/OCR models somewhere reachable (for example, attach them to a GitHub Release or another HTTPS bucket) because they are not committed to the repo.
+- Point the app at those hosted files by defining `window.fastAlprAssetConfig` **before** loading the scripts (you can add this directly in `index.html`):
+
+  ```html
+  <script>
+    window.fastAlprAssetConfig = {
+      // Base URL where you host the FastALPR .onnx models + YAML config
+      modelBaseUrl: 'https://cdn.example.com/fastalpr/',
+      // Optional: prefer your own ONNX Runtime build if you host it
+      onnxRuntimeBaseUrls: ['https://cdn.example.com/onnxruntime/'],
+    };
+  </script>
+  ```
+
+When no FastALPR models are reachable, the app falls back to the bundled Tesseract OCR only (slower and less accurate), so supplying working model URLs is essential for plate detection.
 
 The app requests camera access the first time you tap **Start scanning**. If Safari blocks camera access, use the **Process a
 still image** workflow.
