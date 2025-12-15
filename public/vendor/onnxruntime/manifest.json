@@ -1,35 +1,35 @@
 {
-  "generatedAt": "2025-12-14T08:37:30.468Z",
+  "generatedAt": "2025-12-15T10:03:28.234Z",
   "bundled": true,
   "files": [
     {
       "filename": "ort.all.min.js",
       "bytes": 791904,
-      "modified": "2025-12-14T08:37:30.426Z",
+      "modified": "2025-12-15T10:03:28.199Z",
       "path": "vendor/onnxruntime/ort.all.min.js"
     },
     {
       "filename": "ort-wasm-simd-threaded.wasm",
       "bytes": 11210254,
-      "modified": "2025-12-14T08:37:30.441Z",
+      "modified": "2025-12-15T10:03:28.212Z",
       "path": "vendor/onnxruntime/ort-wasm-simd-threaded.wasm"
     },
     {
       "filename": "ort-wasm-simd-threaded.jsep.wasm",
       "bytes": 21872216,
-      "modified": "2025-12-14T08:37:30.461Z",
+      "modified": "2025-12-15T10:03:28.228Z",
       "path": "vendor/onnxruntime/ort-wasm-simd-threaded.jsep.wasm"
     },
     {
       "filename": "ort-wasm-simd-threaded.mjs",
       "bytes": 20856,
-      "modified": "2025-12-14T08:37:30.465Z",
+      "modified": "2025-12-15T10:03:28.232Z",
       "path": "vendor/onnxruntime/ort-wasm-simd-threaded.mjs"
     },
     {
       "filename": "ort-wasm-simd-threaded.jsep.mjs",
       "bytes": 44677,
-      "modified": "2025-12-14T08:37:30.466Z",
+      "modified": "2025-12-15T10:03:28.232Z",
       "path": "vendor/onnxruntime/ort-wasm-simd-threaded.jsep.mjs"
     }
   ],
